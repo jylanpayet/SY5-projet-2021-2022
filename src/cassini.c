@@ -27,8 +27,8 @@ int main(int argc, char * argv[]) {
   char * daysofweek_str = "*";
   char * pipes_directory = NULL;
   
-  uint16_t operation = CLIENT_REQUEST_LIST_TASKS;
-  uint64_t taskid;
+  u_int16_t operation = CLIENT_REQUEST_LIST_TASKS;
+  u_int64_t taskid;
   
   int opt;
   char * strtoull_endp;
