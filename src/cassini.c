@@ -19,23 +19,20 @@ const char usage_info[] = "\
      -p PIPES_DIR -> look for the pipes in PIPES_DIR (default: /tmp/<USERNAME>/saturnd/pipes)\n\
 ";
 
-void send_ls_request(char *pipe) {
-    int req_pipe = open(pipe, O_WRONLY);
-    if (req_pipe == -1) {
-        perror("Erreur lors de l'ouverture du tube requête.");
-        errno = 1;
-        goto error;
+void send_ls_request(char* pipe) {
+    int p = open(strcat(pipe, "/saturnd-request-pipe"), O_WRONLY);
+    if (p==-1){
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
     }
-
-    u_int16_t OPCODE = CLIENT_REQUEST_LIST_TASKS;
-    if (write(req_pipe, &OPCODE, sizeof(u_init16_t)) < 0) {
+    if (write(p,"LS", strlen("LS"))) {
         perror("write error");
-        errno = 1;
-        goto error;
+
     }
-    close(req_pipe);
+    close(p);
     exit(EXIT_SUCCESS);
 }
+
 
 void set_pipe_dir(char *pipe_dir) {
     char *user = getenv("USER");
@@ -45,6 +42,7 @@ void set_pipe_dir(char *pipe_dir) {
         strcat(pipe_dir, "/saturnd/pipes");
     }
 }
+
 
 int main(int argc, char *argv[]) {
     errno = 0;
@@ -111,23 +109,24 @@ int main(int argc, char *argv[]) {
                 goto error;
         }
     }
+    set_pipe_dir(pipes_directory);
+    /*
     struct stat st1;
-    if (stat(strcat(pipes_directory, "saturnd-request-pipe"), &st1) == -1) {
+    if (stat("./run/pipes/saturnd-request-pipe", &st1) == -1) {
         fprintf(stderr, "le tube requête n'exite pas");
         errno = 1;
         goto error;
     }
-    int req_pipe = open(strcat(pipes_directory, "sturnd-request-pipe"), O_WRONLY);
-    send_ls_request(req_pipe);
     struct stat st;
-    if (stat(strcat(pipes_directory, "saturnd-reply-pipe"), &st) == -1) {
+    if (stat(strcat(pipes_directory, "/saturnd-reply-pipe"), &st) == -1) {
         fprintf(stderr, "le tube réponse n'exite pas");
         errno = 1;
         goto error;
     }
+  */
     switch (operation) {
         case CLIENT_REQUEST_LIST_TASKS:
-            send_ls_request(strcat(pipes_directory, "saturnd-reply-pipe"));
+            send_ls_request(pipes_directory);
             break;
         case CLIENT_REQUEST_CREATE_TASK :
             break;
@@ -139,9 +138,9 @@ int main(int argc, char *argv[]) {
             break;
         case CLIENT_REQUEST_GET_STDOUT :
             break;
-        default break;
+        default : break;
     }
-    set_pipe_dir(pipes_directory);
+
     // --------
     // | TODO |
     // --------
