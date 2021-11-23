@@ -19,6 +19,24 @@ const char usage_info[] = "\
      -p PIPES_DIR -> look for the pipes in PIPES_DIR (default: /tmp/<USERNAME>/saturnd/pipes)\n\
 ";
 
+void send_ls_request(int pipe)
+{
+        u_int16_t OPCODE = CLIENT_REQUEST_LIST_TASKS;
+       if( write(pipe,&OPCODE, 4) < 0)
+       {
+               perror("write error");
+       }
+}
+void set_pipe_dir(char *pipe_dir)
+{
+        char * user = getenv("USER");
+        if(pipe_dir[0] == '\0' || pipe_dir == NULL)
+        {
+                strcat(pipe_dir,"/tmp/");
+                strcat(pipe_dir,user);
+                strcat(pipe_dir,"/saturnd/pipes");
+        }
+}
 int main(int argc, char * argv[]) {
   errno = 0;
   
@@ -44,7 +62,7 @@ int main(int argc, char * argv[]) {
       daysofweek_str = optarg;
       break;
     case 'p':
-      pipes_directory = strdup(optarg);
+        pipes_directory = strdup(optarg);
       if (pipes_directory == NULL) goto error;
       break;
     case 'l':
@@ -84,7 +102,28 @@ int main(int argc, char * argv[]) {
       goto error;
     }
   }
-
+  struct stat st1;
+  if (stat(strcat(pipes_directory,"saturnd-request-pipe"),&st1) == - 1)
+  {
+          fprintf(stderr,"le tube requête n'exite pas");
+          errno = 1;
+          goto error;
+  }
+  int req_pipe = open(strcat(pipes_directory,"sturnd-request-pipe"),O_WRONLY);
+  send_ls_request(req_pipe);
+  struct stat st;
+  if (stat(strcat(pipes_directory,"saturnd-reply-pipe"),&st) == - 1)
+  {
+          fprintf(stderr,"le tube réponse n'exite pas");
+          errno = 1;
+          goto error;
+  }
+  switch(operation)
+  {
+          case CLIENT_REQUEST_LIST_TASKS:
+                  send_ls_request(req_pipe);
+  }
+  set_pipe_dir(pipes_directory);
   // --------
   // | TODO |
   // --------
