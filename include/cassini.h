@@ -9,7 +9,8 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <endian.h>
 #include "client-request.h"
 #include "server-reply.h"
-
+#include "timing.h"
 #endif // CASSINI

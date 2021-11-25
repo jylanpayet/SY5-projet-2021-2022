@@ -21,11 +21,12 @@ const char usage_info[] = "\
 
 void send_ls_request(char* pipe) {
     int p = open(strcat(pipe, "/saturnd-request-pipe"), O_WRONLY);
+    uint16_t opcode = htobe16(CLIENT_REQUEST_LIST_TASKS);
     if (p==-1){
         perror("Erreur.");
         exit(EXIT_FAILURE);
     }
-    if (write(p,"LS", strlen("LS"))) {
+    if (write(p,&opcode, sizeof(opcode))) {
         perror("write error");
 
     }
