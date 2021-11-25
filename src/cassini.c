@@ -1,4 +1,10 @@
+#include <libkern/OSByteOrder.h>
 #include "cassini.h"
+#include "timing-text-io.c"
+
+
+typedef struct timing timing;
+
 
 const char usage_info[] = "\
    usage: cassini [OPTIONS] -l -> list all tasks\n\
@@ -19,21 +25,59 @@ const char usage_info[] = "\
      -p PIPES_DIR -> look for the pipes in PIPES_DIR (default: /tmp/<USERNAME>/saturnd/pipes)\n\
 ";
 
-void send_ls_request(char* pipe) {
-    int p = open(strcat(pipe, "/saturnd-request-pipe"), O_WRONLY);
-    uint16_t opcode = htobe16(CLIENT_REQUEST_LIST_TASKS);
-    if (p==-1){
-        perror("Erreur.");
-        exit(EXIT_FAILURE);
-    }
-    if (write(p,&opcode, sizeof(opcode))) {
+void send_ls_request(int p) {
+    uint16_t opcode =  OSSwapHostToBigInt16(CLIENT_REQUEST_LIST_TASKS);
+    if (write(p,&opcode, sizeof(opcode))<sizeof (opcode)) {
         perror("write error");
-
     }
     close(p);
     exit(EXIT_SUCCESS);
 }
 
+void send_cr_request(int p,int prep,char *minutes_str, char *hours_str, char *daysofweek_str,int argc, char **argv) {
+    uint16_t opcode =  OSSwapHostToBigInt16(CLIENT_REQUEST_CREATE_TASK);
+    struct timing *time= malloc(sizeof (timing));
+    int a = timing_from_strings(time,minutes_str,hours_str,daysofweek_str);
+    if(a==-1){
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
+    }
+    if (write(p,&opcode, sizeof(opcode))<sizeof (opcode)) {
+        perror("write error");
+    }
+    uint64_t m= OSSwapHostToBigInt64(time->minutes);
+    if (write(p,&m, sizeof(m))) {
+        perror("write error");
+    }
+    uint32_t h= OSSwapHostToBigInt32(time->hours);
+    if (write(p,&h, sizeof(h))) {
+        perror("write error");
+    }
+    uint8_t d= OSSwapHostToLittleInt(time->daysofweek);
+    if (write(p,&d, sizeof(d))) {
+        perror("write error");
+    }
+    uint32_t c= OSSwapHostToBigInt32(argc-4);
+    if (write(p,&c, sizeof(c))) {
+        perror("write error");
+    }
+    for(int i = 4; i< argc ; i ++) {
+        uint32_t t= OSSwapHostToBigInt32(strlen(argv[i]));
+        if (write(p,&t, sizeof(t))) {
+            perror("write error");
+        }
+        if (write(p,argv[i], strlen(argv[i]))) {
+            perror("write error");
+        }
+    }
+    char *ss= malloc(80);
+    if(read(prep,ss,80)<80){
+        perror("Erreur");
+    }
+    printf("%s",ss);
+    close(p);
+    exit(EXIT_SUCCESS);
+}
 
 void set_pipe_dir(char *pipe_dir) {
     char *user = getenv("USER");
@@ -125,11 +169,26 @@ int main(int argc, char *argv[]) {
         goto error;
     }
   */
+    char *test=NULL;
+    test = strcpy(test,pipes_directory);
+    int pr=open(strcat(pipes_directory, "/saturnd-request-pipe"), O_WRONLY);
+    if(pr==-1){
+        errno=1;
+        goto error;
+    }
+
+    int prep=open(strcat(test, "/saturnd-reply-pipe"), O_RDONLY);
+    if(prep==-1){
+        errno=1;
+        goto error;
+    }
+
     switch (operation) {
         case CLIENT_REQUEST_LIST_TASKS:
-            send_ls_request(pipes_directory);
+            send_ls_request(pr);
             break;
         case CLIENT_REQUEST_CREATE_TASK :
+            send_cr_request(pr,prep,minutes_str, hours_str, daysofweek_str,argc, argv);
             break;
         case CLIENT_REQUEST_REMOVE_TASK :
             break;
