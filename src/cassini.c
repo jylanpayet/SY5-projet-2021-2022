@@ -1,4 +1,3 @@
-#include <libkern/OSByteOrder.h>
 #include "cassini.h"
 #include "timing-text-io.c"
 
@@ -26,16 +25,17 @@ const char usage_info[] = "\
 ";
 
 void send_ls_request(int p) {
-    uint16_t opcode =  OSSwapHostToBigInt16(CLIENT_REQUEST_LIST_TASKS);
+    uint16_t opcode =  htobe16(CLIENT_REQUEST_LIST_TASKS);
     if (write(p,&opcode, sizeof(opcode))<sizeof (opcode)) {
         perror("write error");
+        exit(EXIT_FAILURE);
     }
     close(p);
     exit(EXIT_SUCCESS);
 }
 
-void send_cr_request(int p,int prep,char *minutes_str, char *hours_str, char *daysofweek_str,int argc, char **argv) {
-    uint16_t opcode =  OSSwapHostToBigInt16(CLIENT_REQUEST_CREATE_TASK);
+void send_cr_request(int p,int b,char *minutes_str, char *hours_str, char *daysofweek_str,int argc, char **argv) {
+    uint16_t opcode =  htobe16(CLIENT_REQUEST_CREATE_TASK);
     struct timing *time= malloc(sizeof (timing));
     int a = timing_from_strings(time,minutes_str,hours_str,daysofweek_str);
     if(a==-1){
@@ -45,47 +45,48 @@ void send_cr_request(int p,int prep,char *minutes_str, char *hours_str, char *da
     if (write(p,&opcode, sizeof(opcode))<sizeof (opcode)) {
         perror("write error");
     }
-    uint64_t m= OSSwapHostToBigInt64(time->minutes);
+    uint64_t m= htobe64(time->minutes);
     if (write(p,&m, sizeof(m))) {
         perror("write error");
     }
-    uint32_t h= OSSwapHostToBigInt32(time->hours);
+    uint32_t h= htobe32(time->hours);
     if (write(p,&h, sizeof(h))) {
         perror("write error");
     }
-    uint8_t d= OSSwapHostToLittleInt(time->daysofweek);
+    uint8_t d= (time->daysofweek);
     if (write(p,&d, sizeof(d))) {
         perror("write error");
     }
-    uint32_t c= OSSwapHostToBigInt32(argc-4);
+    uint32_t c= htobe32(argc-4);
     if (write(p,&c, sizeof(c))) {
         perror("write error");
     }
-    for(int i = 4; i< argc ; i ++) {
-        uint32_t t= OSSwapHostToBigInt32(strlen(argv[i]));
-        if (write(p,&t, sizeof(t))) {
+    for(int i = optind; i< argc ; i ++) {
+        uint32_t t = htobe32(strlen(argv[i]));
+        if (write(p, &t, sizeof(t))) {
             perror("write error");
         }
-        if (write(p,argv[i], strlen(argv[i]))) {
+        if (write(p, argv[i], strlen(argv[i]))) {
             perror("write error");
         }
     }
-    char *ss= malloc(80);
-    if(read(prep,ss,80)<80){
+    char *s= malloc(2);
+    if(read(b,s,2)<2) {
         perror("Erreur");
     }
-    printf("%s",ss);
+    uint64_t taskid;
+    read(b,&taskid,8);
+    printf("%llu",be64toh(taskid));
     close(p);
     exit(EXIT_SUCCESS);
 }
 
+
 void set_pipe_dir(char *pipe_dir) {
     char *user = getenv("USER");
-    if (pipe_dir[0] == '\0' || pipe_dir == NULL) {
         strcat(pipe_dir, "/tmp/");
         strcat(pipe_dir, user);
         strcat(pipe_dir, "/saturnd/pipes");
-    }
 }
 
 
@@ -154,41 +155,19 @@ int main(int argc, char *argv[]) {
                 goto error;
         }
     }
-    set_pipe_dir(pipes_directory);
-    /*
-    struct stat st1;
-    if (stat("./run/pipes/saturnd-request-pipe", &st1) == -1) {
-        fprintf(stderr, "le tube requête n'exite pas");
-        errno = 1;
-        goto error;
-    }
-    struct stat st;
-    if (stat(strcat(pipes_directory, "/saturnd-reply-pipe"), &st) == -1) {
-        fprintf(stderr, "le tube réponse n'exite pas");
-        errno = 1;
-        goto error;
-    }
-  */
-    char *test=NULL;
-    test = strcpy(test,pipes_directory);
-    int pr=open(strcat(pipes_directory, "/saturnd-request-pipe"), O_WRONLY);
-    if(pr==-1){
-        errno=1;
-        goto error;
-    }
-
-    int prep=open(strcat(test, "/saturnd-reply-pipe"), O_RDONLY);
-    if(prep==-1){
+    int b=open("./run/pipes/saturnd-reply-pipe", O_RDONLY);
+    int p=open(strcat(pipes_directory, "/saturnd-request-pipe"), O_WRONLY);
+    if(p==-1){
         errno=1;
         goto error;
     }
 
     switch (operation) {
         case CLIENT_REQUEST_LIST_TASKS:
-            send_ls_request(pr);
+            send_ls_request(p);
             break;
         case CLIENT_REQUEST_CREATE_TASK :
-            send_cr_request(pr,prep,minutes_str, hours_str, daysofweek_str,argc, argv);
+            send_cr_request(p,b,minutes_str, hours_str, daysofweek_str,argc, argv);
             break;
         case CLIENT_REQUEST_REMOVE_TASK :
             break;
