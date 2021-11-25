@@ -24,59 +24,59 @@ const char usage_info[] = "\
      -p PIPES_DIR -> look for the pipes in PIPES_DIR (default: /tmp/<USERNAME>/saturnd/pipes)\n\
 ";
 
-void send_ls_request(int p) {
+void send_ls_request(int p, int b) {
     uint16_t opcode =  htobe16(CLIENT_REQUEST_LIST_TASKS);
-    if (write(p,&opcode, sizeof(opcode))<sizeof (opcode)) {
-        perror("write error");
+    if (write(p,&opcode, sizeof(opcode)) < sizeof (opcode)) {
+        perror("La requête n'a pas pu être exécutée.");
         exit(EXIT_FAILURE);
     }
-    close(p);
+
     exit(EXIT_SUCCESS);
 }
 
 void send_cr_request(int p,int b,char *minutes_str, char *hours_str, char *daysofweek_str,int argc, char **argv) {
     uint16_t opcode =  htobe16(CLIENT_REQUEST_CREATE_TASK);
     struct timing *time= malloc(sizeof (timing));
+    if(time==NULL){
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
+    }
     int a = timing_from_strings(time,minutes_str,hours_str,daysofweek_str);
     if(a==-1){
         perror("Erreur.");
         exit(EXIT_FAILURE);
     }
-    if (write(p,&opcode, sizeof(opcode))<sizeof (opcode)) {
-        perror("write error");
+    if (write(p,&opcode, sizeof(opcode)) ==-1) {
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
     }
     uint64_t m= htobe64(time->minutes);
-    if (write(p,&m, sizeof(m))) {
-        perror("write error");
-    }
     uint32_t h= htobe32(time->hours);
-    if (write(p,&h, sizeof(h))) {
-        perror("write error");
-    }
     uint8_t d= (time->daysofweek);
-    if (write(p,&d, sizeof(d))) {
-        perror("write error");
-    }
-    uint32_t c= htobe32(argc-4);
-    if (write(p,&c, sizeof(c))) {
-        perror("write error");
+    uint32_t c= htobe32(argc-optind);
+    if (write(p,&m, sizeof(m))==-1 || write(p,&h, sizeof(h))==-1 || write(p,&d, sizeof(d))==-1 || write(p,&c, sizeof(c))==-1) {
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
     }
     for(int i = optind; i< argc ; i ++) {
         uint32_t t = htobe32(strlen(argv[i]));
-        if (write(p, &t, sizeof(t))) {
-            perror("write error");
-        }
-        if (write(p, argv[i], strlen(argv[i]))) {
-            perror("write error");
+        if (write(p, &t, sizeof(t))==-1 || write(p, argv[i], strlen(argv[i]))==-1) {
+            perror("Erreur.");
+            exit(EXIT_FAILURE);
         }
     }
-    char *s= malloc(2);
-    if(read(b,s,2)<2) {
-        perror("Erreur");
+    char *s;
+    if(read(b,&s,sizeof(s)) ==-1) {
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
     }
     uint64_t taskid;
-    read(b,&taskid,8);
+    if(read(b,&taskid, sizeof(uint64_t)) ==-1){
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
+    }
     printf("%llu",be64toh(taskid));
+    free(time);
     close(p);
     exit(EXIT_SUCCESS);
 }
@@ -88,7 +88,6 @@ void set_pipe_dir(char *pipe_dir) {
         strcat(pipe_dir, user);
         strcat(pipe_dir, "/saturnd/pipes");
 }
-
 
 int main(int argc, char *argv[]) {
     errno = 0;
@@ -164,7 +163,7 @@ int main(int argc, char *argv[]) {
 
     switch (operation) {
         case CLIENT_REQUEST_LIST_TASKS:
-            send_ls_request(p);
+            send_ls_request(p,b);
             break;
         case CLIENT_REQUEST_CREATE_TASK :
             send_cr_request(p,b,minutes_str, hours_str, daysofweek_str,argc, argv);
@@ -184,6 +183,8 @@ int main(int argc, char *argv[]) {
     // | TODO |
     // --------
 
+    close(p);
+    close(b);
     return EXIT_SUCCESS;
 
     error:
