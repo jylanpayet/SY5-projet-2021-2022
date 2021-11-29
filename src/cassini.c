@@ -77,11 +77,11 @@ void send_ls_request(int p, int b) {
             }
             int h=be32toh(l);
             char *content = malloc(h);
-            if (read(b, &content, h) == -1) {
+            if (read(b, content, h) == -1) {
                 perror("Erreur.");
                 exit(EXIT_FAILURE);
             }
-            printf("%s ", &content);
+            printf("%s ", content);
             q--;
         }
         printf("\n");
