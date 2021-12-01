@@ -201,10 +201,11 @@ void send_info_request(int p, int b, uint64_t taskid) {
             }
             printf("%d", be16toh(exit_code));
             printf("\n");
-            free(str);
             v++;
 
         }
+    }else{
+        exit(1);
     }
 }
 
@@ -237,8 +238,53 @@ void send_so_request(int p, int b, uint64_t taskid) {
             exit(EXIT_FAILURE);
         }
         printf("%s ", content);
+    }else{
+        exit(1);
     }
     exit(EXIT_SUCCESS);
+}
+
+void send_se_request(int p, int b, uint64_t taskid) {
+    uint16_t opcode = htobe16(CLIENT_REQUEST_GET_STDERR);
+    if (write(p, &opcode, sizeof(uint16_t)) == -1) {
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
+    }
+    taskid = htobe64(taskid);
+    if (write(p, &taskid, sizeof(uint64_t)) == -1) {
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
+    }
+    uint16_t rep;
+    if (read(b, &rep, sizeof(int16_t)) == -1) {
+        perror("erreur");
+        exit(EXIT_FAILURE);
+    }
+    if (be16toh(rep) == SERVER_REPLY_OK) {
+        uint32_t l;
+        if (read(b, &l, sizeof(l)) == -1) {
+            perror("Erreur.");
+            exit(EXIT_FAILURE);
+        }
+        int h = be32toh(l);
+        char *content = malloc(h);
+        if (read(b, content, h) == -1) {
+            perror("Erreur.");
+            exit(EXIT_FAILURE);
+        }
+        printf("%s ", content);
+    }else{
+        exit(1);
+    }
+    exit(EXIT_SUCCESS);
+}
+
+void send_tm_request(int p) {
+    uint16_t opcode = htobe16(CLIENT_REQUEST_TERMINATE);
+    if (write(p, &opcode, sizeof(uint16_t)) == -1) {
+        perror("Erreur.");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void set_pipe_dir(char *pipe_dir) {
@@ -337,8 +383,10 @@ int main(int argc, char *argv[]) {
             send_so_request(p, b, taskid);
             break;
         case CLIENT_REQUEST_GET_STDERR :
+            send_se_request(p, b, taskid);
             break;
         case CLIENT_REQUEST_TERMINATE :
+            send_tm_request(p);
             break;
         default :
             break;
@@ -358,4 +406,3 @@ int main(int argc, char *argv[]) {
     pipes_directory = NULL;
     return EXIT_FAILURE;
 }
-
