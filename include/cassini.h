@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <time.h>
 #include "client-request.h"
 #include "server-reply.h"
 #include "timing.h"
