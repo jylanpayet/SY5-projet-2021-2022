@@ -293,6 +293,12 @@ int send_tm_request(int p) {
     return (EXIT_SUCCESS);
 }
 
+void set_pipe_dir(char *pipe_dir) {
+    char *user = getenv("USER");
+    strcat(pipe_dir, "/tmp/");
+    strcat(pipe_dir, user);
+    strcat(pipe_dir, "/saturnd/pipes");
+}
 
 int main(int argc, char *argv[]) {
     errno = 0;

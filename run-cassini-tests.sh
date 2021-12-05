@@ -15,6 +15,8 @@ REPLY_PIPE=saturnd-reply-pipe
 
 TIMEOUT=3
 
+rm -f valgrind-log
+
 if ! command -v timeout >/dev/null 2>&1
 then
   echo "The command timeout (from package coreutils) is missing"
@@ -64,8 +66,9 @@ run_test() {
   PID1=$!
   timeout $TIMEOUT cat "$PIPESDIR/$REQUEST_PIPE" > "$TMP1" &
   PID2=$!
-  timeout $TIMEOUT $CASSINI -p "$PIPESDIR" "${ARGS[@]}" > "$TMP2" 2>/dev/null
+  timeout $TIMEOUT valgrind $CASSINI -p "$PIPESDIR" "${ARGS[@]}" > "$TMP2" 2>>valgrind-log
   RES=$?
+  echo -e "\n\n===================\n\n" >> valgrind-log
   CMD="$CASSINI -p '$PIPESDIR' ${ARGS_ESC[@]}"
 
 

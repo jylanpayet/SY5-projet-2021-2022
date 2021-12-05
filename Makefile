@@ -1,6 +1,6 @@
 CC=gcc
 EXEC=cassini
-CFLAGS=-Wall #-Werror
+CFLAGS=-Wall -g #-Werror
 INCLUDES=include
 SRC=src/cassini.c
 OBJ=$(SRC:.c=.o)
