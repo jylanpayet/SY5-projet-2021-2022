@@ -1,6 +1,6 @@
 #ifndef CASSINI_H
 #define CASSINI_H
-
+#define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>

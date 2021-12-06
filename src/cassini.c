@@ -1,5 +1,5 @@
 #include "cassini.h"
-#include "timing-text-io.c"
+/* #include "timing-text-io.c" */
 
 struct timing timing;
 const char usage_info[] = "\
@@ -441,7 +441,6 @@ int main(int argc, char *argv[]) {
 
     close(p);
     close(b);
-    //fprintf(stderr,"%p\n",pipes_directory);
     free(pipes_directory);
     pipes_directory = NULL;
     return EXIT_SUCCESS;
