@@ -14,6 +14,9 @@
 #include "server-reply.h"
 #include "timing.h"
 #include "timing-text-io.h"
+#include "client.h"
+#include "saturnd.h"
+
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
 #define htobe16(x) OSSwapHostToBigInt16(x)
