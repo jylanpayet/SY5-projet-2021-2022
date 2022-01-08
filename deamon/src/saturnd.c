@@ -1,9 +1,8 @@
-#include <unistd.h>
-#include <stdio.h>
-
+#include "saturnd.h"
 
 int main(){
     int r;
+    create_fifo();
     r = fork();
     switch(r) {
         case -1 :
@@ -12,7 +11,7 @@ int main(){
             printf("je suis le fils, mon pid est %d, celui de mon père %d\n",getpid(), getppid());
             while(1)
             {
-                    //break;
+                //break;
             }
             break;
         default : // père

@@ -1,4 +1,6 @@
 #include "client.h"
+#include "cassini.h"
+
 struct timing timing;
 
 int send_ls_request(int p, int b) {
