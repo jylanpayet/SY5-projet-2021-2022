@@ -3,20 +3,20 @@
 int main(){
     int r;
     create_fifo();
-    create_tasks_directory();
     r = fork();
     switch(r) {
         case -1 :
             perror("fork");
+            return 1;
         case 0 : // fils
-            printf("je suis le fils, mon pid est %d, celui de mon père %d\n",getpid(), getppid());
-            char *request;
-            char *reply;
-            char *pipes_directory;
-            if (pipes_directory == NULL) {
-                asprintf(&pipes_directory, "/tmp/%s/saturnd/pipes", getenv("USER"));
-            }
+            if (setsid() < 0)
+                exit(EXIT_FAILURE);
 
+            printf("je suis le fils, mon pid est %d, celui de mon père %d\n",getpid(), getppid());
+            char *request= NULL;
+            char *reply = NULL;
+            char *pipes_directory = NULL;
+            asprintf(&pipes_directory, "/tmp/%s/saturnd/pipes", getenv("USER"));
             asprintf(&request, "%s/saturnd-request-pipe", pipes_directory);
             asprintf(&reply, "%s/saturnd-reply-pipe", pipes_directory);
             int p = open(request, O_RDONLY);
@@ -26,17 +26,9 @@ int main(){
                 free(reply);
                 exit(1);
             }
-            while(1)
-            {
-                char *req = malloc(10);
-                printf("j'essaye de lire...");
-                if (read(p,req,1) ==-1)
-                {
-                    perror("jarrive pas a lire");
-                    //exit(1);
-                }
-                printf("j'ai lu %s",req);
-                free(req);
+            while(1){
+                //À Completer
+                break;
             }
             break;
         default : // père

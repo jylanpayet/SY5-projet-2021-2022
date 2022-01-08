@@ -32,6 +32,9 @@ int create_fifo(){
     if (stat("pipes", &st) == -1) {
         mkdir("pipes", 0755);
     }
+    if (stat("tasks", &st) == -1) {
+        mkdir("tasks", 0755);
+    }
     asprintf(&directory,"/tmp/%s/saturnd/pipes", getenv("USER"));
     if (chdir(directory) != 0){
         perror("/tmp/user/saturnd/pipes");
@@ -40,43 +43,21 @@ int create_fifo(){
     }
 
     if(stat(reply,&st)==-1){
-        if(mkfifo(reply,S_IRUSR | S_IWUSR)==-1){
+        if(mkfifo(reply,0755)==-1){
             perror("pipes");
             free(directory);
             exit(EXIT_FAILURE);
         }
     }
     if(stat(request,&st)==-1){
-        if(mkfifo(request,S_IRUSR | S_IWUSR)==-1){
+        if(mkfifo(request,0755)==-1){
             perror("pipes");
             free(directory);
             exit(EXIT_FAILURE);
         }
     }
+    chdir("/");
     free(directory);
-    return 0;
-}
-
-int create_tasks_directory()
-{
-    int res = mkdir("tasks",0755);
-    if(res == -1)
-    {
-        switch (errno)
-        {
-            case EACCES :
-            {
-                exit(EXIT_FAILURE);
-            }
-            case EEXIST:
-            {
-                return(0);
-            }
-            default:
-                perror("mkdir");
-                return (1);
-        }
-    }
     return 0;
 }
 
@@ -92,7 +73,7 @@ int max_tab(int  tab[], int n)
 
 int get_next_task_id()
 {
-    //int errno = 0;
+    //Mettre le path dans opendir
     DIR *dirp = opendir("tasks");
     if(dirp == NULL)
     {
