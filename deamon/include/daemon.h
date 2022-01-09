@@ -14,5 +14,6 @@
 int create_fifo();
 int create_tasks_directory();
 int get_next_task_id();
+int create_task();
 
 #endif
