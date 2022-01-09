@@ -1,4 +1,5 @@
 #include "saturnd.h"
+#define TIME_OUT -1
 
 int main(){
     int r;
@@ -9,30 +10,67 @@ int main(){
             perror("fork");
             return 1;
         case 0 : // fils
-            if (setsid() < 0)
-                exit(EXIT_FAILURE);
-
-            printf("je suis le fils, mon pid est %d, celui de mon père %d\n",getpid(), getppid());
-            char *request= NULL;
-            char *reply = NULL;
-            char *pipes_directory = NULL;
-            asprintf(&pipes_directory, "/tmp/%s/saturnd/pipes", getenv("USER"));
-            asprintf(&request, "%s/saturnd-request-pipe", pipes_directory);
-            asprintf(&reply, "%s/saturnd-reply-pipe", pipes_directory);
-            int p = open(request, O_RDONLY);
-            int b = open(reply,O_WRONLY);
-            if (p == -1 || b == -1) {
-                free(request);
-                free(reply);
+            if(setsid() < 0){
+                perror("setsid");
                 exit(1);
             }
-            while(1){
-                //À Completer
-                break;
+            struct pollfd fds [1];
+            char *s = NULL;
+
+            printf("fils %d -> père %d\n",getpid(), getppid());
+            asprintf(&s,"/tmp/%s/saturnd/pipes/saturnd-request-pipe", getenv("USER"));
+
+            fds[0].fd = open(s,O_NONBLOCK,O_RDONLY);
+            fds[0].events = POLLIN;
+
+            free(s);
+            if (fds[0].fd == -1){
+                perror("open");
+                exit(1);
             }
-            break;
+            uint16_t opcode;
+            while(1){
+                int ret = poll(fds, 1, TIME_OUT);
+                if (ret < 0){
+                    perror("Le poll à échoué");
+                    exit(1);
+                }
+                if(fds[0].revents & POLLIN){
+                    if(read(fds[0].fd,&opcode,sizeof (opcode))==-1){
+                        perror("Le read à échoué");
+                        exit(1);
+                    }
+                    switch (be16toh(opcode)) {
+                        case CLIENT_REQUEST_LIST_TASKS:
+                            //TODO
+                            break;
+                        case CLIENT_REQUEST_CREATE_TASK :
+                            //TODO
+                            break;
+                        case CLIENT_REQUEST_REMOVE_TASK :
+                            //TODO
+                            break;
+                        case CLIENT_REQUEST_GET_TIMES_AND_EXITCODES :
+                            //TODO
+                            break;
+                        case CLIENT_REQUEST_GET_STDOUT :
+                            //TODO
+                            break;
+                        case CLIENT_REQUEST_GET_STDERR :
+                            //TODO
+                            break;
+                        case CLIENT_REQUEST_TERMINATE :
+                            //Write sur le pipe de reply...
+                            return 0;
+                        default:
+                            perror("Erreur rencontrée.");
+                            return 1;
+                    }
+
+                }
+            }
         default : // père
-            printf("je suis le père, de pid %d, je viens de créer un fils de pid %d\n",getpid(), r);
+            printf("père %d -> fils %d\n",getpid(), r);
             return 0;
     }
 }
