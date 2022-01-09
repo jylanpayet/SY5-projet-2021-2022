@@ -1,7 +1,6 @@
 #include "daemon.h"
 struct timing timing;
 int create_fifo(){
-    printf("create fifo\n");
     char *directory;
     char request [] = "saturnd-request-pipe";
     char reply [] = "saturnd-reply-pipe";
@@ -132,8 +131,7 @@ int get_dates(int fd_req)
     return 0;
 }
 
-int get_arguments(int fd_req)
-{
+int get_arguments(int fd_req){
     int arguments_fd = open("argument",O_CREAT,0600);
     uint32_t c;
     char *curr_arg = malloc(10);
@@ -161,17 +159,18 @@ int get_arguments(int fd_req)
             perror("erreur write");
             exit(EXIT_FAILURE);
         }
+        /*
         if(write(arguments_fd,'\n',1) == -1)
         {
             perror("erreur write");
             exit(EXIT_FAILURE);
         }
+         */
     }
     return (0);
 }
 
-int create_task(int req_fd)
-{
+int create_task(int req_fd){
     char *path = NULL;
     asprintf(&path,"/tmp/%s/saturnd/tasks", getenv("USER"));
     printf("path pour create task : %s\n",path);

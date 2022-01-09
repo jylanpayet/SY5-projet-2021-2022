@@ -1,7 +1,17 @@
-#ifndef SATURND_H
-#define SATURND_H
-#include "daemon.h"
-#include <poll.h>
+#ifndef DAEMON_H
+#define DAEMON_H
+
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include "client-request.h"
+#include "timing-text-io.h"
+#include "timing.h"
+#include <dirent.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/fcntl.h>
 
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
@@ -14,6 +24,6 @@
 #else
 #include <endian.h>
 #endif
+int create_fifo();
 
-#include "../../client/include/client-request.h"
 #endif
