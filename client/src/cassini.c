@@ -1,4 +1,4 @@
-#include "cassini.h"
+                                                                                                                                                                                                            #include "cassini.h"
 const char usage_info[] = "\
                            usage: cassini [OPTIONS] -l -> list all tasks\n\
                            or: cassini [OPTIONS]    -> same\n\
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
             }
             break;
         case CLIENT_REQUEST_REMOVE_TASK :
-            if (send_rm_request(p,b, taskid) == 1) {
+            if (send_rm_request(p, taskid) == 1) {
                 errno = 1;
                 goto error;
             }

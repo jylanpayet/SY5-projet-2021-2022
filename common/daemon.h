@@ -24,6 +24,9 @@
 #else
 #include <endian.h>
 #endif
+#include "server-reply.h"
+int rm_task(int fd_req);
+int terminate_demon(int fd_req);
 int create_fifo();
 int get_new_task_id();
 int get_dates(int fd_req);
