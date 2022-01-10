@@ -89,6 +89,7 @@ int send_cr_request(int p, int b, char *minutes_str, char *hours_str, char *days
         perror("Erreur.");
         return (EXIT_FAILURE);
     }
+
     if (write(p, &opcode, sizeof(opcode)) == -1) {
         perror("Erreur.");
         return (EXIT_FAILURE);
