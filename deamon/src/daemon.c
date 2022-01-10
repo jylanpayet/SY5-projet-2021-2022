@@ -1,5 +1,6 @@
 #include "daemon.h"
 struct timing timing;
+
 int create_fifo(){
     char *directory;
     char request [] = "saturnd-request-pipe";
@@ -41,7 +42,6 @@ int create_fifo(){
         free(directory);
         exit(EXIT_FAILURE);
     }
-
     if(stat(reply,&st)==-1){
         if(mkfifo(reply,0755)==-1){
             perror("pipes");
@@ -61,24 +61,12 @@ int create_fifo(){
     return 0;
 }
 
-int max_tab(const int  tab[], int n)
-{
-    int max = tab[0];
-    for (int i = 1; i < n; ++i)
-    {
-        if (tab[i] > max) max = tab[i];
-    }
-    return max;
-}
-
-int get_new_task_id()
-{
-    //Mettre le path dans opendir
-    DIR *dirp = opendir("tasks");
-    if(dirp == NULL)
-    {
-        switch (errno)
-        {
+int get_new_task_id(){
+    char *path = NULL;
+    asprintf(&path,"/tmp/%s/saturnd/tasks", getenv("USER"));
+    DIR *dirp = opendir(path);
+    if(dirp == NULL){
+        switch (errno){
             case EACCES:
                 exit(EXIT_FAILURE);
             case ENOENT:
@@ -86,29 +74,29 @@ int get_new_task_id()
                 exit(EXIT_FAILURE);
         }
     }
-    int ids[256]= {0};
+    int ids[257] = {0};
     struct dirent *entry;
-    int i = 0;
-    while ((entry = readdir(dirp)))
-    {
+    int i = 1;
+    ids[0]= -1;
+    while ((entry = readdir(dirp))){
         char name[256];
         strcpy(name,(entry->d_name));
-        if((name[0]) != '.' && (entry->d_type) == DT_DIR )
-        {
+        if((name[0]) != '.' && (entry->d_type) == DT_DIR ){
             ids[i] = atoi(name);
+            if(ids[i] > ids[0])
+                ids[0] = ids[i];
             i++;
         }
     }
-    int next_id = max_tab(ids,256) + 1;
+    int next_id = ids[0]+1;
     closedir(dirp);
     return next_id;
 }
 
 
 
-int get_dates(int fd_req)
-{
-    int date_fd = open("date",O_CREAT,0600);
+int get_dates(int fd_req){
+    int date_fd = open("date",O_CREAT | O_WRONLY,0600);
     char *dest = malloc(TIMING_TEXT_MIN_BUFFERSIZE);
     struct timing *time = malloc(sizeof timing);
     uint64_t minutes;
@@ -119,7 +107,7 @@ int get_dates(int fd_req)
         perror("Erreur.");
         return (EXIT_FAILURE);
     }
-    time -> minutes = be64toh(minutes);
+    time->minutes = be64toh(minutes);
     time->hours = be32toh(hours);
     time->daysofweek = days;
     int r = timing_string_from_timing(dest, time);
@@ -127,76 +115,67 @@ int get_dates(int fd_req)
         perror("Erreur.");
         return (EXIT_FAILURE);
     }
-    write(date_fd,dest,TIMING_TEXT_MIN_BUFFERSIZE);
+    printf("%s\n",dest);
+    // N'écrit pas sur le fichier : donc checker les droits ect ...
+    write(date_fd,dest,r);
+    close(date_fd);
     return 0;
 }
 
 int get_arguments(int fd_req){
-    int arguments_fd = open("argument",O_CREAT,0600);
+    int arguments_fd = open("argument",O_CREAT | O_WRONLY,0600);
     uint32_t c;
-    char *curr_arg = malloc(10);
     if (read(fd_req, &c, sizeof(c)) == -1) {
         perror("Erreur.");
         return (EXIT_FAILURE);
     }
-    for (int i = 0; i < be32toh(c); i++)
-    {
+    for (int i = 0; i < be32toh(c); i++){
         uint32_t t;
-        if (read(fd_req, &t, sizeof(t)) == -1)
-        {
+        if (read(fd_req, &t, sizeof(t)) == -1){
             perror("read error!");
             exit(EXIT_FAILURE);
         }
-        int t1 = be32toh(t);
-        curr_arg = realloc(curr_arg,t);
-        if (read(fd_req, curr_arg, t1) == -1)
-        {
+        char *curr_arg = malloc(be32toh(t)+1);
+        if (read(fd_req, curr_arg, be32toh(t)) == -1){
             perror("read error!");
             exit(EXIT_FAILURE);
         }
-        if(write(arguments_fd,curr_arg,t) == -1)
-        {
+        curr_arg [be32toh(t)] = '\n';
+        if(write(arguments_fd,curr_arg, sizeof(curr_arg)) == -1){
             perror("erreur write");
             exit(EXIT_FAILURE);
         }
-        /*
-        if(write(arguments_fd,'\n',1) == -1)
-        {
-            perror("erreur write");
-            exit(EXIT_FAILURE);
-        }
-         */
     }
+    close(arguments_fd);
     return (0);
 }
 
 int create_task(int req_fd){
     char *path = NULL;
     asprintf(&path,"/tmp/%s/saturnd/tasks", getenv("USER"));
-    printf("path pour create task : %s\n",path);
     chdir(path);
-    printf("juste avant malloc\n");
-    int new_id = get_new_task_id();
-    printf("%d\n",new_id);
+    int new_id =get_new_task_id();
     char buff[256];
-
-
-    sprintf(buff,"%d",new_id);
-
+    sprintf(buff,"%s/%d",path,new_id);
     mkdir(buff,0700);
     chdir(buff);
-/*if(get_dates(req_fd) != 0)
-{
-    perror("la date na pas été écrite");
-    errno = 1;
-}*/
+
+    //tester chaque retour de fonction.
+    get_dates(req_fd);
+    //get_arguments(req_fd);
+
+    //TODO -> effectuer les taches pour stocker les résultats dans ces deux fichiers
     open("stdout",O_CREAT,0600);
-    open("arguments",O_CREAT,0600);
-    open("exitcode",O_CREAT,0600);// fin de la creation des fichiers vides
+    open("exitcode",O_CREAT,0600);
     printf("fin de fonction\n");
+
+    /*
+
+* -> Ecrire sur le reply la reponse attendu
+
+    char *reply;
+    asprintf(&reply,"/tmp/%s/saturnd/pipes/saturnd-request-pipe",getenv("USER"));
+    int p = open(reply,O_NONBLOCK,O_RDONLY);
+    */
     return 0;
-    //uint64 uint32 uint8  time à ecrire dans date
-    //unit32 nb args
-    //uint32 longeur
-    //suite de longeur
 }

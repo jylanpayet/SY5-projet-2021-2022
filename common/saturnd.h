@@ -3,7 +3,7 @@
 #include "daemon.h"
 #include <poll.h>
 #include "client-request.h"
-#include <sys/fcntl.h>
+#include "server-reply.h"
 
 #ifdef __APPLE__
 #include <libkern/OSByteOrder.h>
