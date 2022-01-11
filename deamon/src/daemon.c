@@ -311,3 +311,50 @@ int terminate_demon(int fd_req){
     close(p);
     return 0;
 }
+
+int compteur(){
+    int cpt = 0;
+    DIR *dirp = opendir(".");
+    if(dirp == NULL){
+        switch (errno){
+            case EACCES:
+                exit(EXIT_FAILURE);
+            case ENOENT:
+                perror("le répertoire tasks n'existe pas");
+                exit(EXIT_FAILURE);
+        }
+    }
+    struct dirent *entry;
+    while ((entry = readdir(dirp))){
+        char name[256];
+        strcpy(name, (entry->d_name));
+        if((name[0]) != '.') {
+            cpt++;
+        }
+    }
+    return cpt;
+}
+
+int espace(char *s){
+    int occurrence = 0;
+    for(int i = 0; s[i] != '\0'; ++i)
+    {
+        if(s[i] == ' ')
+            occurrence++;
+    }
+    return occurrence;
+}
+
+int delimiter_args (char *s, int fd_req, int p){
+    char delim[] = " ";
+    char *ptr = strtok(s, delim);
+    while(ptr != NULL){
+        uint32_t t = htobe32(strlen(ptr));
+        if(write(p,&t,sizeof(t))==-1 || write(p,ptr,strlen(ptr))==-1){
+            close(p);
+            return 1;
+        }
+        ptr = strtok(NULL, delim);
+    }
+    return 0;
+}
