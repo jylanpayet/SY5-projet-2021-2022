@@ -14,34 +14,41 @@ int main(){
                 perror("setsid");
                 exit(1);
             }
+            struct pollfd fds [1];
             char *request;
 
             printf("fils %d -> père %d\n",getpid(), getppid());
             asprintf(&request,"/tmp/%s/saturnd/pipes/saturnd-request-pipe", getenv("USER"));
 
-            int fd = open(request,O_RDONLY);
+            fds[0].fd = open(request,O_NONBLOCK,O_RDONLY);
+            fds[0].events = POLLIN;
             free(request);
-            if (fd == -1){
+            if (fds[0].fd == -1){
                 perror("open");
                 return 1;
             }
             while(1){
                 uint16_t opcode;
-                if(read(fd,&opcode,sizeof (opcode))==-1){
+                int ret = poll(fds, 1, TIME_OUT);
+                if (ret < 0){
+                    perror("Le poll à échoué");
+                    return 1;
+                }
+                if(fds[0].revents & POLLIN){
+                    if(read(fds[0].fd,&opcode,sizeof (opcode))==-1){
                         perror("Le read à échoué");
                         return 1;
                     }
+
                     switch (be16toh(opcode)) {
                         case CLIENT_REQUEST_LIST_TASKS:
                             //TODO
                             break;
                         case CLIENT_REQUEST_CREATE_TASK :
-                            //TODO
-                            create_task(fd);
+                            create_task(fds[0].fd);
                             break;
                         case CLIENT_REQUEST_REMOVE_TASK :
-                            //TODO
-                            rm_task(fd);
+                            rm_task(fds[0].fd);
                             break;
                         case CLIENT_REQUEST_GET_TIMES_AND_EXITCODES :
                             //TODO
@@ -53,16 +60,18 @@ int main(){
                             //TODO
                             break;
                         case CLIENT_REQUEST_TERMINATE :
-                            terminate_demon(fd);
+                            terminate_demon(fds[0].fd);
+                            close(fds[0].fd);
                             return 0;
                         default:
                             perror("Erreur rencontrée");
                             return 1;
                     }
+
+                }
             }
         default : // père
             printf("père %d -> fils %d\n",getpid(), r);
             return 0;
     }
 }
-

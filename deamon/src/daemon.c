@@ -189,6 +189,30 @@ int create_task(int req_fd){
     open("stdout",O_CREAT,0600);
     open("exitcode",O_CREAT,0600);
 
+    char *reply;
+    asprintf(&reply,"/tmp/%s/saturnd/pipes/saturnd-reply-pipe", getenv("USER"));
+    int p = open(reply,O_WRONLY);
+    if(p ==-1){
+        perror("reply.");
+        free(reply);
+        close(p);
+        return 1;
+    }
+    uint16_t ok = htobe16(SERVER_REPLY_OK);
+    if (write(p,&ok, sizeof(ok)) == -1) {
+        perror("Erreur.");
+        free(reply);
+        close(p);
+        return 1;
+    }
+    uint64_t taskid = htobe64(new_id);
+    if (write(p,&taskid, sizeof(taskid)) == -1) {
+        perror("Erreur.");
+        free(reply);
+        close(p);
+        return 1;
+    }
+    close(p);
     /*
 * -> Ecrire sur le reply la reponse attendu
 
@@ -238,7 +262,6 @@ int rm_task(int fd_req){
 
     char * path;
     asprintf(&path,"%llu",be64toh(id));
-
     char *reply;
     asprintf(&reply,"/tmp/%s/saturnd/pipes/saturnd-reply-pipe",getenv("USER"));
     int fd_reply = open(reply,O_WRONLY);
@@ -285,7 +308,6 @@ int terminate_demon(int fd_req){
         free(reply);
         return 1;
     }
-    printf("je sais d'effacer \n");
     uint16_t ok = htobe16(SERVER_REPLY_OK);
     if (write(p,&ok, sizeof(ok)) == -1) {
         perror("Erreur.");

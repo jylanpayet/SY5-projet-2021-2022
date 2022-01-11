@@ -92,64 +92,60 @@ int main(int argc, char *argv[]) {
     }
     asprintf(&request, "%s/saturnd-request-pipe", pipes_directory);
     asprintf(&reply, "%s/saturnd-reply-pipe", pipes_directory);
-    int p = open(request, O_WRONLY);
-    int b = open(reply,O_RDONLY);
-    if (p == -1 || b == -1) {
-        free(request);
-        free(reply);
-        errno = 1;
-        goto error;
-    }
-    free(request);
-    free(reply);
 
     switch (operation) {
         case CLIENT_REQUEST_LIST_TASKS:
-            if (send_ls_request(p,b) == 1) {
-                close(p);
-                close(b);
+            if (send_ls_request(request,reply) == 1) {
+                free(request);
+                free(reply);
                 errno = 1;
                 goto error;
             }
             break;
         case CLIENT_REQUEST_CREATE_TASK :
-            if (send_cr_request(p,b, minutes_str, hours_str, daysofweek_str, argc, argv) == 1) {
+            if (send_cr_request(request,reply, minutes_str, hours_str, daysofweek_str, argc, argv) == 1) {
+                free(request);
+                free(reply);
                 errno = 1;
                 goto error;
             }
             break;
         case CLIENT_REQUEST_REMOVE_TASK :
-            if (send_rm_request(p, taskid) == 1) {
+            if (send_rm_request(request,reply, taskid) == 1) {
+                free(request);
+                free(reply);
                 errno = 1;
                 goto error;
             }
             break;
         case CLIENT_REQUEST_GET_TIMES_AND_EXITCODES :
-            if (send_info_request(p,b, taskid) == 1) {
+            if (send_info_request(request,reply, taskid) == 1) {
+                free(request);
+                free(reply);
                 errno = 1;
                 goto error;
             }
             break;
         case CLIENT_REQUEST_GET_STDOUT :
-            if (send_so_request(p,b, taskid) == 1) {
-                close(p);
-                close(b);
+            if (send_so_request(request,reply, taskid) == 1) {
+                free(request);
+                free(reply);
                 errno = 1;
                 goto error;
             }
             break;
         case CLIENT_REQUEST_GET_STDERR :
-            if (send_se_request(p, b, taskid) == 1) {
-                close(p);
-                close(b);
+            if (send_se_request(request,reply, taskid) == 1) {
+                free(request);
+                free(reply);
                 errno = 1;
                 goto error;
             }
             break;
         case CLIENT_REQUEST_TERMINATE :
-            if (send_tm_request(p) == 1) {
-                close(p);
-                close(b);
+            if (send_tm_request(request,reply) == 1) {
+                free(request);
+                free(reply);
                 errno = 1;
                 goto error;
             }
@@ -160,8 +156,8 @@ int main(int argc, char *argv[]) {
     // | TODO |
     // --------
 
-    close(p);
-    close(b);
+    free(request);
+    free(reply);
     free(pipes_directory);
     pipes_directory = NULL;
     return EXIT_SUCCESS;

@@ -3,20 +3,36 @@
 
 struct timing timing;
 
-int send_ls_request(int p, int b) {
+int send_ls_request(char *request, char *reply) {
     uint16_t opcode = htobe16(CLIENT_REQUEST_LIST_TASKS);
+    int p = open(request, O_WRONLY);
+    if (p == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
     if (write(p, &opcode, sizeof(opcode)) == -1) {
         perror("La requête n'a pas pu être exécutée.");
+        close(p);
         return (EXIT_FAILURE);
+    }
+    close(p);
+    int b = open(reply, O_RDONLY);
+    if (b == -1){
+        perror("open");
+        close(b);
+        return 1;
     }
     uint16_t ok;
     if (read(b, &ok, sizeof(ok)) == -1) {
         perror("Erreur.");
+        close(b);
         return (EXIT_FAILURE);
     }
     uint32_t nbtask;
     if (read(b, &nbtask, sizeof(nbtask)) == -1) {
         perror("Erreur.");
+        close(b);
         return (EXIT_FAILURE);
     }
     int a = be32toh(nbtask);
@@ -24,6 +40,7 @@ int send_ls_request(int p, int b) {
         uint64_t taskid;
         if (read(b, &taskid, sizeof(uint64_t)) == -1) {
             perror("Erreur.");
+            close(b);
             return (EXIT_FAILURE);
         }
         printf("%llu: ", (long long) be64toh(taskid));
@@ -35,6 +52,7 @@ int send_ls_request(int p, int b) {
         if (read(b, &minutes, sizeof(uint64_t)) == -1 || read(b, &hours, sizeof(uint32_t)) == -1 ||
             read(b, &days, sizeof(uint8_t)) == -1) {
             perror("Erreur.");
+            close(b);
             return (EXIT_FAILURE);
         }
         time->minutes = be64toh(minutes);
@@ -43,12 +61,14 @@ int send_ls_request(int p, int b) {
         int r = timing_string_from_timing(dest, time);
         if (r == 0) {
             perror("Erreur.");
+            close(b);
             return (EXIT_FAILURE);
         }
         printf("%s ", dest);
         uint32_t argc;
         if (read(b, &argc, sizeof(argc)) == -1) {
             perror("Erreur.");
+            close(b);
             return (EXIT_FAILURE);
         }
         int q = be32toh(argc);
@@ -58,12 +78,14 @@ int send_ls_request(int p, int b) {
             uint32_t l;
             if (read(b, &l, sizeof(l)) == -1) {
                 perror("Erreur.");
+                close(b);
                 return (EXIT_FAILURE);
             }
             int h = be32toh(l);
             char *content = malloc(h + 1);
             if (read(b, content, h) == -1) {
                 perror("Erreur.");
+                close(b);
                 return (EXIT_FAILURE);
             }
             content[h] = '\0';
@@ -74,10 +96,11 @@ int send_ls_request(int p, int b) {
         printf("\n");
         a--;
     }
+    close(b);
     return (EXIT_SUCCESS);
 }
 
-int send_cr_request(int p, int b, char *minutes_str, char *hours_str, char *daysofweek_str, int argc, char **argv) {
+int send_cr_request(char *request, char *reply, char *minutes_str, char *hours_str, char *daysofweek_str, int argc, char **argv) {
     uint16_t opcode = htobe16(CLIENT_REQUEST_CREATE_TASK);
     struct timing *time = malloc(sizeof(timing));
     if (time == NULL) {
@@ -89,11 +112,18 @@ int send_cr_request(int p, int b, char *minutes_str, char *hours_str, char *days
         perror("Erreur.");
         return (EXIT_FAILURE);
     }
-
+    int p = open(request, O_WRONLY);
+    if (p == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
     if (write(p, &opcode, sizeof(opcode)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
     }
+
     uint64_t m = htobe64(time->minutes);
     uint32_t h = htobe32(time->hours);
     uint8_t d = (time->daysofweek);
@@ -101,64 +131,129 @@ int send_cr_request(int p, int b, char *minutes_str, char *hours_str, char *days
     if (write(p, &m, sizeof(m)) == -1 || write(p, &h, sizeof(h)) == -1 || write(p, &d, sizeof(d)) == -1 ||
         write(p, &c, sizeof(c)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
     }
     for (int i = optind; i < argc; i++) {
         uint32_t t = htobe32(strlen(argv[i]));
         if (write(p, &t, sizeof(t)) == -1 || write(p, argv[i], strlen(argv[i])) == -1) {
             perror("Erreur.");
+            close(p);
             return (EXIT_FAILURE);
         }
+    }
+    close(p);
+
+    int b = open(reply, O_RDONLY);
+    if (b == -1){
+        perror("open");
+        close(b);
+        return 1;
     }
     uint16_t ok;
     if (read(b, &ok, sizeof(ok)) == -1) {
         perror("Erreur.");
+        close(b);
         return (EXIT_FAILURE);
     }
     uint64_t taskid;
     if (read(b, &taskid, sizeof(uint64_t)) == -1) {
         perror("Erreur.");
+        close(b);
         return (EXIT_FAILURE);
     }
-    printf("%llu", (long long) be64toh(taskid));
+    printf("%llu\n", be64toh(taskid));
     free(time);
+    close(b);
     return (EXIT_SUCCESS);
 }
 
-int send_rm_request(int p, uint64_t taskid) {
+int send_rm_request(char *request, char *reply, uint64_t taskid) {
     uint16_t opcode = htobe16(CLIENT_REQUEST_REMOVE_TASK);
+    int p = open(request, O_WRONLY);
+    if (p == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
     if (write(p, &opcode, sizeof(uint16_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
     }
     taskid = htobe64(taskid);
     if (write(p, &taskid, sizeof(uint64_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
+    }
+    close(p);
+    int b = open(reply, O_RDONLY);
+    if (b == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
+    uint16_t ok;
+    if (read(b, &ok, sizeof(ok)) == -1) {
+        perror("Erreur.");
+        close(b);
+        return (EXIT_FAILURE);
+    }
+    if (be16toh(ok) == SERVER_REPLY_OK) {
+        close(b);
+        return 0;
+    }
+    else{
+        uint16_t errcode;
+        if (read(b, &errcode, sizeof(errcode)) == -1) {
+            perror("Erreur.");
+            close(b);
+            return (EXIT_FAILURE);
+        }
+        return 1;
     }
     return (EXIT_SUCCESS);
 }
 
-int send_info_request(int p, int b, uint64_t taskid) {
+int send_info_request(char *request, char *reply, uint64_t taskid) {
     uint16_t opcode = htobe16(CLIENT_REQUEST_GET_TIMES_AND_EXITCODES);
+    int p = open(request, O_WRONLY);
+    if (p == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
     if (write(p, &opcode, sizeof(uint16_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
     }
     taskid = htobe64(taskid);
     if (write(p, &taskid, sizeof(uint64_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
+    }
+    close(p);
+
+    int b = open(reply, O_RDONLY);
+    if (b == -1){
+        perror("open");
+        close(b);
+        return 1;
     }
     uint16_t reptype;
     if (read(b, &reptype, sizeof(uint16_t)) == -1) {
         perror("Erreur.");
+        close(b);
         return (EXIT_FAILURE);
     }
     if (be16toh(reptype) == SERVER_REPLY_OK) {
         uint32_t nb_runs;
         if (read(b, &nb_runs, sizeof(uint32_t)) == -1) {
             perror("erreur");
+            close(b);
             return (EXIT_FAILURE);
         }
         int runs = be32toh(nb_runs);
@@ -167,6 +262,7 @@ int send_info_request(int p, int b, uint64_t taskid) {
             int64_t time;
             if (read(b, &time, sizeof(int64_t)) == -1) {
                 perror("erreur");
+                close(b);
                 return (EXIT_FAILURE);
             }
 
@@ -179,6 +275,7 @@ int send_info_request(int p, int b, uint64_t taskid) {
             int16_t exit_code;
             if (read(b, &exit_code, sizeof(int16_t)) == -1) {
                 perror("erreur");
+                close(b);
                 return (EXIT_FAILURE);
             }
             printf("%d", be16toh(exit_code));
@@ -186,69 +283,109 @@ int send_info_request(int p, int b, uint64_t taskid) {
             v++;
 
         }
+        close(b);
         return (EXIT_SUCCESS);
     } else {
+        close(b);
         return (EXIT_FAILURE);
     }
 }
 
-int send_so_request(int p, int b, uint64_t taskid) {
+int send_so_request(char *request, char *reply, uint64_t taskid) {
     uint16_t opcode = htobe16(CLIENT_REQUEST_GET_STDOUT);
+    int p = open(request, O_WRONLY);
+    if (p == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
     if (write(p, &opcode, sizeof(uint16_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
     }
     taskid = htobe64(taskid);
     if (write(p, &taskid, sizeof(uint64_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
+    }
+    close(p);
+
+    int b = open(reply, O_RDONLY);
+    if (b == -1){
+        perror("open");
+        close(b);
+        return 1;
     }
     uint16_t rep;
     if (read(b, &rep, sizeof(int16_t)) == -1) {
         perror("erreur");
+        close(b);
         return (EXIT_FAILURE);
     }
     if (be16toh(rep) == SERVER_REPLY_OK) {
         uint32_t l;
         if (read(b, &l, sizeof(l)) == -1) {
             perror("Erreur.");
+            close(b);
             return (EXIT_FAILURE);
         }
         int h = be32toh(l);
         char *content = malloc(h + 1);
         if (read(b, content, h) == -1) {
             perror("Erreur.");
+            close(b);
             return (EXIT_FAILURE);
         }
         content[h] = '\0';
         printf("%s ", content);
         free(content);
+        close(b);
         return (EXIT_SUCCESS);
     } else {
+        close(b);
         return (EXIT_FAILURE);
     }
 }
 
-int send_se_request(int p, int b, uint64_t taskid) {
+int send_se_request(char *request, char *reply, uint64_t taskid) {
     uint16_t opcode = htobe16(CLIENT_REQUEST_GET_STDERR);
+    int p = open(request, O_WRONLY);
+    if (p == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
     if (write(p, &opcode, sizeof(uint16_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
     }
     taskid = htobe64(taskid);
     if (write(p, &taskid, sizeof(uint64_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
+    }
+    close(p);
+    int b = open(reply, O_RDONLY);
+    if (b == -1){
+        perror("open");
+        close(b);
+        return 1;
     }
     uint16_t rep;
     if (read(b, &rep, sizeof(int16_t)) == -1) {
         perror("erreur");
+        close(b);
         return (EXIT_FAILURE);
     }
     if (be16toh(rep) == SERVER_REPLY_OK) {
         uint32_t l;
         if (read(b, &l, sizeof(l)) == -1) {
             perror("Erreur.");
+            close(b);
             return (EXIT_FAILURE);
         }
         int h = be32toh(l);
@@ -256,23 +393,47 @@ int send_se_request(int p, int b, uint64_t taskid) {
         if (read(b, content, h) == -1) {
             perror("Erreur.");
             free(content);
+            close(b);
             return (EXIT_FAILURE);
         }
         content[h] = '\0';
         printf("%s ", content);
         free(content);
+        close(b);
         return (EXIT_SUCCESS);
     } else {
+        close(b);
         return (EXIT_FAILURE);
     }
 }
 
-int send_tm_request(int p) {
+int send_tm_request(char *request, char *reply) {
     uint16_t opcode = htobe16(CLIENT_REQUEST_TERMINATE);
+    int p = open(request, O_WRONLY);
+    if (p == -1){
+        perror("open");
+        close(p);
+        return 1;
+    }
     if (write(p, &opcode, sizeof(uint16_t)) == -1) {
         perror("Erreur.");
+        close(p);
         return (EXIT_FAILURE);
     }
+    close(p);
+    int b = open(reply, O_RDONLY);
+    if (b == -1){
+        perror("open");
+        close(b);
+        return 1;
+    }
+    uint16_t ok;
+    if (read(b, &ok, sizeof(ok)) == -1) {
+        perror("Erreur.");
+        close(b);
+        return (EXIT_FAILURE);
+    }
+    close(b);
     return (EXIT_SUCCESS);
 }
 
