@@ -213,13 +213,6 @@ int create_task(int req_fd){
         return 1;
     }
     close(p);
-    /*
-* -> Ecrire sur le reply la reponse attendu
-
-    char *reply;
-    asprintf(&reply,"/tmp/%s/saturnd/pipes/saturnd-request-pipe",getenv("USER"));
-    int p = open(reply,O_NONBLOCK,O_RDONLY);
-    */
     return 0;
 }
 int rm_files(){

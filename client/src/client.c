@@ -286,6 +286,12 @@ int send_info_request(char *request, char *reply, uint64_t taskid) {
         close(b);
         return (EXIT_SUCCESS);
     } else {
+        uint16_t errcode;
+        if (read(b, &errcode, sizeof(errcode)) == -1) {
+            perror("Erreur.");
+            close(b);
+            return (EXIT_FAILURE);
+        }
         close(b);
         return (EXIT_FAILURE);
     }
@@ -344,6 +350,12 @@ int send_so_request(char *request, char *reply, uint64_t taskid) {
         close(b);
         return (EXIT_SUCCESS);
     } else {
+        uint16_t errcode;
+        if (read(b, &errcode, sizeof(errcode)) == -1) {
+            perror("Erreur.");
+            close(b);
+            return (EXIT_FAILURE);
+        }
         close(b);
         return (EXIT_FAILURE);
     }
@@ -402,6 +414,12 @@ int send_se_request(char *request, char *reply, uint64_t taskid) {
         close(b);
         return (EXIT_SUCCESS);
     } else {
+        uint16_t errcode;
+        if (read(b, &errcode, sizeof(errcode)) == -1) {
+            perror("Erreur.");
+            close(b);
+            return (EXIT_FAILURE);
+        }
         close(b);
         return (EXIT_FAILURE);
     }
