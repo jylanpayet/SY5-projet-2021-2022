@@ -358,3 +358,112 @@ int delimiter_args (char *s, int fd_req, int p){
     }
     return 0;
 }
+
+int list_taskdirectory(int fd_req){
+    DIR *dirp = opendir(".");
+    if(dirp == NULL){
+        switch (errno){
+            case EACCES:
+                exit(EXIT_FAILURE);
+            case ENOENT:
+                perror("le rÃ©pertoire tasks n'existe pas");
+                exit(EXIT_FAILURE);
+        }
+    }
+    char *reply;
+    asprintf(&reply,"/tmp/%s/saturnd/pipes/saturnd-reply-pipe", getenv("USER"));
+    int p = open(reply,O_WRONLY);
+    if(p ==-1){
+        perror("reply.");
+        free(reply);
+        close(p);
+        return 1;
+    }
+    free(reply);
+    uint16_t ok = htobe16(SERVER_REPLY_OK);
+    uint32_t cpt = htobe32(compteur());
+
+    if (write(p,&ok, sizeof(ok)) == -1 || write(p,&cpt,sizeof (cpt)) == -1) {
+        perror("Erreur.");
+        close(p);
+        return 1;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dirp))){
+        char name[256];
+        strcpy(name, (entry->d_name));
+        if((name[0]) != '.') {
+            int a = atoi(name);
+            uint64_t id = htobe64(a);
+            if(write(p,&id,sizeof (id)) == -1){
+                perror("read1");
+                close(p);
+                return 1;
+            }
+            chdir(name);
+            int time = open("time",O_RDONLY);
+            if (time == -1){
+                close(time);
+                close(p);
+                return 1;
+            }
+            uint64_t m;
+            uint32_t h;
+            uint8_t d;
+            if(read(time,&m,sizeof (m)) == -1 || read(time,&h,sizeof (h)) == -1 || read(time,&d,sizeof (d)) == -1){
+                perror("read");
+                close(time);
+                close(p);
+                return 1;
+            }
+            if(write(p,&m,sizeof (m)) == -1 || write(p,&h,sizeof (h)) == -1 || write(p,&d,sizeof (d)) == -1){
+                perror("read");
+                close(time);
+                close(p);
+                return 1;
+            }
+            close(time);
+            int argument = open("argument",O_RDONLY);
+            if (argument == -1){
+                close(argument);
+                close(p);
+                return 1;
+            }
+            struct stat st;
+            stat("argument", &st);
+            char *contenu = malloc(st.st_size+1);
+            if(read(argument, contenu, st.st_size)==-1){
+                perror("read");
+                close(argument);
+                free(contenu);
+                close(p);
+                return 1;
+            }
+            contenu[st.st_size] = '\0';
+            uint32_t t = htobe32(espace(contenu));
+            if(write(p,&t,sizeof (t))==-1){
+                free(contenu);
+                return 1;
+            }
+            delimiter_args(contenu,fd_req,p);
+            free(contenu);
+            chdir("..");
+        }
+    }
+    close(p);
+    return(0);
+}
+int list_task(int fd_req){
+    char *directory;
+    asprintf(&directory,"/tmp/%s/saturnd/tasks", getenv("USER"));
+
+    if(chdir(directory) != 0){
+        perror("chdir");
+        free(directory);
+        return 1;
+    }
+    list_taskdirectory(fd_req);
+    free(directory);
+    return 0;
+}
