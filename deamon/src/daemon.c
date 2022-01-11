@@ -9,26 +9,28 @@ int create_fifo(){
 
     if (chdir("/tmp") != 0){
         perror("/tmp");
-        exit(EXIT_FAILURE);
+        return 1;
     }
     asprintf(&directory,"/%s", getenv("USER"));
     if (stat(getenv("USER"),&st)== -1) {
         mkdir(getenv("USER"), 0755);
     }
+    free(directory);
     asprintf(&directory,"/tmp/%s", getenv("USER"));
     if (chdir(directory) != 0){
         perror("/tmp/user");
         free(directory);
-        exit(EXIT_FAILURE);
+        return 1;
     }
     if (stat("saturnd", &st) == -1) {
         mkdir("saturnd", 0755);
     }
+    free(directory);
     asprintf(&directory,"/tmp/%s/saturnd", getenv("USER"));
     if (chdir(directory) != 0){
         perror("/tmp/user/saturnd");
         free(directory);
-        exit(EXIT_FAILURE);
+        return 1;
     }
     if (stat("pipes", &st) == -1) {
         mkdir("pipes", 0755);
@@ -36,24 +38,25 @@ int create_fifo(){
     if (stat("tasks", &st) == -1) {
         mkdir("tasks", 0755);
     }
+    free(directory);
     asprintf(&directory,"/tmp/%s/saturnd/pipes", getenv("USER"));
     if (chdir(directory) != 0){
         perror("/tmp/user/saturnd/pipes");
         free(directory);
-        exit(EXIT_FAILURE);
+        return 1;
     }
     if(stat(reply,&st)==-1){
         if(mkfifo(reply,0755)==-1){
             perror("pipes");
             free(directory);
-            exit(EXIT_FAILURE);
+            return 1;
         }
     }
     if(stat(request,&st)==-1){
         if(mkfifo(request,0755)==-1){
             perror("pipes");
             free(directory);
-            exit(EXIT_FAILURE);
+            return 1;
         }
     }
     chdir("/");
