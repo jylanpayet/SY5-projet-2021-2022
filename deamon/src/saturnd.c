@@ -42,7 +42,7 @@ int main(){
 
                     switch (be16toh(opcode)) {
                         case CLIENT_REQUEST_LIST_TASKS:
-                            //TODO
+                            list_task(fds[0].fd);
                             break;
                         case CLIENT_REQUEST_CREATE_TASK :
                             create_task(fds[0].fd);

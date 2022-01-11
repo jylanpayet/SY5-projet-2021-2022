@@ -97,9 +97,6 @@ int get_new_task_id(){
 
 
 int get_dates(int fd_req){
-    int date_fd = open("time",O_CREAT | O_WRONLY,0600);
-    char *dest = malloc(TIMING_TEXT_MIN_BUFFERSIZE);
-    struct timing *time = malloc(sizeof timing);
     uint64_t minutes;
     uint32_t hours;
     uint8_t days;
@@ -108,24 +105,17 @@ int get_dates(int fd_req){
         perror("Erreur date");
         return (EXIT_FAILURE);
     }
-    time->minutes = be64toh(minutes);
-    time->hours = be32toh(hours);
-    time->daysofweek = days;
-    int r = timing_string_from_timing(dest, time);
-    free(time);
-    if (r == 0) {
+    int date_fd = open("time",O_CREAT | O_WRONLY,0600);
+    if (date_fd == 0) {
         perror("Erreur.");
-        free(dest);
         close(date_fd);
         return 1;
     }
-    if(write(date_fd,dest,r) == -1){
-        perror("write");
-        free(dest);
-        close(date_fd);
-        return 1;
+    if (write(date_fd, &minutes, sizeof(uint64_t)) == -1 || write(date_fd, &hours, sizeof(uint32_t)) == -1 ||
+        write(date_fd, &days, sizeof(uint8_t)) == -1) {
+        perror("Erreur date");
+        return (EXIT_FAILURE);
     }
-    free(dest);
     close(date_fd);
     return 0;
 }
@@ -135,22 +125,28 @@ int get_arguments(int fd_req){
     uint32_t c;
     if (read(fd_req, &c, sizeof(c)) == -1) {
         perror("Erreur.");
+        close(arguments_fd);
         return (EXIT_FAILURE);
     }
     for (int i = 0; i < be32toh(c); i++){
         uint32_t t;
         if (read(fd_req, &t, sizeof(t)) == -1){
             perror("read error!");
+            close(arguments_fd);
             exit(EXIT_FAILURE);
         }
         char *curr_arg = malloc(be32toh(t));
         if (read(fd_req, curr_arg,be32toh(t)) == -1){
             perror("read error!");
+            close(arguments_fd);
+            free(curr_arg);
             exit(EXIT_FAILURE);
         }
         curr_arg [be32toh(t)] = ' ';
         if(write(arguments_fd,curr_arg,be32toh(t)+1) == -1){
             perror("erreur write");
+            close(arguments_fd);
+            free(curr_arg);
             exit(EXIT_FAILURE);
         }
         free(curr_arg);
@@ -166,8 +162,10 @@ int create_task(int req_fd){
 
     if(chdir(path)!=0){
         perror("chdir");
+        free(path);
         return 1;
     }
+    free(path);
     int new_id =get_new_task_id();
     char buff[256];
     sprintf(buff,"%s/%d",path,new_id);
@@ -212,6 +210,7 @@ int create_task(int req_fd){
         close(p);
         return 1;
     }
+    free(reply);
     close(p);
     return 0;
 }
@@ -244,9 +243,10 @@ int rm_task(int fd_req){
 
     if(chdir(directory) != 0){
         perror("chdir");
+        free(directory);
         return 1;
     }
-
+    free(directory);
     uint64_t id;
     if(read(fd_req,&id,sizeof (id) ) == -1){
         perror("read");
@@ -260,6 +260,9 @@ int rm_task(int fd_req){
     int fd_reply = open(reply,O_WRONLY);
     if (fd_reply == -1){
         perror("ouverture pipe");
+        free(reply);
+        free(path);
+        close(fd_reply);
         return 1;
     }
     // Tache non trouvée.
@@ -268,6 +271,9 @@ int rm_task(int fd_req){
         uint16_t errcode=  htobe16(SERVER_REPLY_ERROR_NOT_FOUND);
         if(write(fd_reply,&er,sizeof(er))==-1 || write(fd_reply,&errcode,sizeof(errcode))==-1){
             perror("probleme wirte");
+            free(reply);
+            free(path);
+            close(fd_reply);
             return 1;
         }
         return 0;
@@ -275,11 +281,17 @@ int rm_task(int fd_req){
 
     if(chdir(path) != 0){
         perror("chdir");
+        free(reply);
+        free(path);
+        close(fd_reply);
         return 1;
     }
     rm_files();
     if(chdir("..") != 0){
         perror("chdir");
+        free(reply);
+        free(path);
+        close(fd_reply);
         return 1;
     }
     rmdir(path);
@@ -287,8 +299,14 @@ int rm_task(int fd_req){
     uint16_t ok=  htobe16(SERVER_REPLY_OK);
     if(write(fd_reply,&ok,sizeof(ok))==-1){
         perror("probleme wirte");
+        free(reply);
+        free(path);
+        close(fd_reply);
         return 1;
     }
+    free(reply);
+    free(path);
+    close(fd_reply);
     return 0;
 }
 
@@ -299,12 +317,14 @@ int terminate_demon(int fd_req){
     if(p ==-1){
         perror("reply.");
         free(reply);
+        close(p);
         return 1;
     }
     uint16_t ok = htobe16(SERVER_REPLY_OK);
     if (write(p,&ok, sizeof(ok)) == -1) {
         perror("Erreur.");
         free(reply);
+        close(p);
         return 1;
     }
     free(reply);
@@ -366,7 +386,7 @@ int list_taskdirectory(int fd_req){
             case EACCES:
                 exit(EXIT_FAILURE);
             case ENOENT:
-                perror("le rÃ©pertoire tasks n'existe pas");
+                perror("le répertoire tasks n'existe pas");
                 exit(EXIT_FAILURE);
         }
     }

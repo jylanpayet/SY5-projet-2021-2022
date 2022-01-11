@@ -32,5 +32,7 @@ int get_new_task_id();
 int get_dates(int fd_req);
 int get_arguments(int fd_req);
 int create_task(int req_fd);
+int list_task(int req_fd);
+int list_taskdirectory(int req_fd);
 
 #endif
